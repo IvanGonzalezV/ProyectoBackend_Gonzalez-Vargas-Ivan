@@ -1,0 +1,6 @@
+# Archivos temporales
+*.log
+*.tmp
+
+# Carpetas generadas
+node_modules/
