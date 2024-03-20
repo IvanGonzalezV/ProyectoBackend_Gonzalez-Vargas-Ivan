@@ -1,13 +1,11 @@
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
+import { io } from '../server.js'; // Importa socket.io desde el archivo server.js
 
 const router = express.Router();
 
-// Configuración de Multer para la carga de archivos
-const upload = multer({ dest: 'uploads/' });
-
-// Función asincrónica para leer el archivo de productos
+// Funcion (async) para leer el archivo de productos
 const readFileAsync = async (filePath) => {
   try {
     const data = await fs.promises.readFile(filePath, 'utf8');
@@ -17,7 +15,7 @@ const readFileAsync = async (filePath) => {
   }
 };
 
-// Función asincrónica para escribir en el archivo de productos
+// funcion (async) para escribir en el archivo de productos
 const writeFileAsync = async (filePath, data) => {
   try {
     await fs.promises.writeFile(filePath, JSON.stringify(data));
@@ -26,13 +24,13 @@ const writeFileAsync = async (filePath, data) => {
   }
 };
 
-// Función para generar ID único de producto
+// Funcion para generar ID único de producto
 function generateProductId() {
   const randomNumber = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
   return `exshop_${randomNumber}`;
 }
 
-// Ruta GET raíz: listar todos los productos
+// Ruta GET raiz: listar todos los productos
 router.get('/', async (req, res) => {
   try {
     const productos = await readFileAsync('data/products.json');
@@ -43,7 +41,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Ruta GET para obtener un producto por su ID
+// Ruta GET para obtener producto por su ID
 router.get('/:pid', async (req, res) => {
   const productId = req.params.pid;
 
@@ -62,7 +60,7 @@ router.get('/:pid', async (req, res) => {
 });
 
 // Ruta POST para agregar un nuevo producto
-router.post('/', upload.array('thumbnails', 5), async (req, res) => {
+router.post('/', async (req, res) => {
   const newProduct = {
     id: generateProductId(),
     title: req.body.title,
@@ -79,6 +77,10 @@ router.post('/', upload.array('thumbnails', 5), async (req, res) => {
     let productos = await readFileAsync('data/products.json');
     productos.push(newProduct);
     await writeFileAsync('data/products.json', productos);
+
+    // Emitir evento 'updateProducts' para notificar a los clientes
+    io.emit('updateProducts', productos);
+
     res.status(201).json(newProduct);
   } catch (error) {
     console.error(error);
@@ -101,6 +103,10 @@ router.put('/:pid', async (req, res) => {
     updatedProduct.id = productId;
     productos[index] = updatedProduct;
     await writeFileAsync('data/products.json', productos);
+
+    // Emitir evento 'updateProducts' para notificar a los clientes
+    io.emit('updateProducts', productos);
+
     res.json(updatedProduct);
   } catch (error) {
     console.error(error);
@@ -121,6 +127,10 @@ router.delete('/:pid', async (req, res) => {
     }
     productos.splice(index, 1);
     await writeFileAsync('data/products.json', productos);
+
+    // Emitir evento 'updateProducts' para notificar a los clientes
+    io.emit('updateProducts', productos);
+
     res.status(204).send();
   } catch (error) {
     console.error(error);
